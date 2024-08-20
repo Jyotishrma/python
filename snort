@@ -1,0 +1,79 @@
+import os
+import subprocess
+
+def run_command(command):
+    """Run a shell command and print the output"""
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    if process.returncode != 0:
+        print(f"Error: {stderr.decode('utf-8')}")
+        raise Exception(f"Failed to run: {command}")
+    else:
+        print(stdout.decode('utf-8'))
+
+def update_system():
+    """Update the system packages"""
+    print("Updating system packages...")
+    run_command("sudo apt-get update")
+    run_command("sudo apt-get upgrade -y")
+
+def install_dependencies():
+    """Install the necessary dependencies for Snort"""
+    print("Installing dependencies...")
+    dependencies = [
+        "build-essential", "libpcap-dev", "libpcre3-dev", "libdumbnet-dev", "bison", "flex", "zlib1g-dev",
+        "liblzma-dev", "openssl", "libssl-dev", "libnghttp2-dev", "libdnet-dev", "libluajit-5.1-dev", 
+        "libmnl-dev", "libtool", "libpcap-dev", "libpcre3-dev", "libdumbnet-dev", "libnetfilter-queue-dev", 
+        "libhwloc-dev", "daq", "libdaq-dev"
+    ]
+    run_command(f"sudo apt-get install -y {' '.join(dependencies)}")
+
+def download_snort():
+    """Download Snort source code"""
+    print("Downloading Snort...")
+    snort_url = "https://www.snort.org/downloads/snort/snort-2.9.20.tar.gz"
+    run_command(f"wget {snort_url} -O /tmp/snort.tar.gz")
+    run_command("tar -xzvf /tmp/snort.tar.gz -C /tmp")
+
+def install_snort():
+    """Compile and install Snort"""
+    print("Installing Snort...")
+    run_command("cd /tmp/snort-2.9.20 && sudo ./configure --enable-sourcefire")
+    run_command("cd /tmp/snort-2.9.20 && sudo make")
+    run_command("cd /tmp/snort-2.9.20 && sudo make install")
+    
+    # Create necessary directories
+    run_command("sudo mkdir -p /etc/snort/rules /etc/snort/preproc_rules /var/log/snort /usr/local/lib/snort_dynamicrules")
+    
+    # Set permissions
+    run_command("sudo chmod -R 5775 /etc/snort")
+    run_command("sudo chmod -R 5775 /var/log/snort")
+    run_command("sudo chmod -R 5775 /usr/local/lib/snort_dynamicrules")
+
+def configure_snort():
+    """Configure Snort basic settings"""
+    print("Configuring Snort...")
+    
+    # Create configuration files
+    run_command("sudo touch /etc/snort/snort.conf /etc/snort/rules/local.rules /etc/snort/sid-msg.map")
+    
+    # Download Snort configuration files
+    run_command("sudo wget https://www.snort.org/downloads/community/snort3-community-rules.tar.gz -O /tmp/snort3-community-rules.tar.gz")
+    run_command("sudo tar -xzvf /tmp/snort3-community-rules.tar.gz -C /etc/snort/rules")
+    
+    # Example Snort configuration
+    run_command('echo "include /etc/snort/rules/local.rules" | sudo tee -a /etc/snort/snort.conf')
+
+def main():
+    try:
+        update_system()
+        install_dependencies()
+        download_snort()
+        install_snort()
+        configure_snort()
+        print("Snort installation and configuration completed successfully.")
+    except Exception as e:
+        print(f"Installation failed: {e}")
+
+if __name__ == "__main__":
+    main()
